@@ -1,0 +1,11 @@
+ip: 0.0.0.0
+port: 16666
+
+log:
+  file_name: ./server.log   # 文件名
+  level: debug # 日志级别 debug info warn error fatal
+  max_size: 10   # 文件大小限制 MB
+  max_age: 7    # 保留天数
+  max_backups: 10 # 文件数
+  compress: false    # 是否压缩
+  format_type: json # 格式换类型 console/file
