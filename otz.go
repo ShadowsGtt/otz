@@ -20,10 +20,10 @@ func (s *Server) Register(method string, handler func(*gin.Context)) {
 func (s *Server) Start() error {
 	cfg := GetGlobalConfig()
 	addr := fmt.Sprintf("%s:%s", cfg.Ip, cfg.Port)
+	log.Infof("server start, listen addr: %s", addr)
 	if err := s.engine.Run(addr); err != nil {
 		return err
 	}
-	log.Infof("server start, listen addr: %s", addr)
 	return nil
 }
 
