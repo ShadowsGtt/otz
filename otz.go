@@ -2,6 +2,7 @@ package otz
 
 import (
 	"flag"
+	"fmt"
 	"github.com/ShadowsGtt/otz/log"
 	"github.com/gin-gonic/gin"
 	"io/ioutil"
@@ -18,9 +19,11 @@ func (s *Server) Register(method string, handler func(*gin.Context)) {
 
 func (s *Server) Start() error {
 	cfg := GetGlobalConfig()
-	if err := s.engine.Run(cfg.Ip + ":" + cfg.Port); err != nil {
+	addr := fmt.Sprintf("%s:%s", cfg.Ip, cfg.Port)
+	if err := s.engine.Run(addr); err != nil {
 		return err
 	}
+	log.Infof("server start, listen addr: %s", addr)
 	return nil
 }
 
