@@ -13,7 +13,7 @@ type Server struct {
 }
 
 func (s *Server) Register(method string, handler func(*gin.Context)) {
-	s.engine.POST(method, handler)
+	s.engine.Any(method, handler)
 }
 
 func (s *Server) Start() error {
