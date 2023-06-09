@@ -40,11 +40,33 @@ func SetDefaultWithLoader(parser Parser) error {
 	return nil
 }
 
+// SetDefaultWithParseSkip 设置默认日志
+func SetDefaultWithParseSkip(parser Parser, skip int) error {
+	if parser == nil {
+		return errors.New("loader is nil")
+	}
+	cfgs := []Config{}
+	err := parser.Parse(&cfgs)
+	if err != nil {
+		return err
+	}
+	defaultLogger = NewZapLogWithSkip(skip, cfgs...)
+
+	return nil
+}
+
 // SetDefault 设置默认日志
 func SetDefault(cfgs ...Config) {
 	mutex.Lock()
 	defer mutex.Unlock()
 	defaultLogger = NewZapLog(cfgs...)
+}
+
+// SetDefaultWithSkip 设置默认日志
+func SetDefaultWithSkip(skip int, cfgs ...Config) {
+	mutex.Lock()
+	defer mutex.Unlock()
+	defaultLogger = NewZapLogWithSkip(skip, cfgs...)
 }
 
 // GetDefaultLogger 获取默认日志

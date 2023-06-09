@@ -69,6 +69,22 @@ func NewZapLog(cfgs ...Config) Logger {
 	}
 }
 
+// NewZapLogWithSkip 创建zap日志
+func NewZapLogWithSkip(skip int, cfgs ...Config) Logger {
+	cores := []zapcore.Core{}
+	for _, c := range cfgs {
+		cores = append(cores, createZapCore(c))
+	}
+	return &ZapLog{
+		zapLog: zap.New(
+			zapcore.NewTee(cores...),
+			zap.AddCaller(),
+			zap.AddCallerSkip(skip),
+		),
+		cfgs: cfgs,
+	}
+}
+
 func createZapCore(c Config) zapcore.Core {
 	wr := getOutputWriter(c)
 	ws := zapcore.AddSync(wr)
