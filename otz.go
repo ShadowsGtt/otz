@@ -1,10 +1,12 @@
 package otz
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"github.com/ShadowsGtt/otz/log"
 	"github.com/gin-gonic/gin"
+	"gopkg.in/yaml.v3"
 	"io/ioutil"
 )
 
@@ -37,6 +39,17 @@ func getServerConfigPath() string {
 	return GlobalServerConfigFile
 }
 
+type logParser struct {
+	node *yaml.Node
+}
+
+func (p *logParser) Parse(dst interface{}) error {
+	if p.node == nil {
+		return errors.New("node is nil")
+	}
+	return p.node.Decode(dst)
+}
+
 // NewServer 创建服务
 func NewServer() *Server {
 	s := &Server{}
@@ -50,7 +63,11 @@ func NewServer() *Server {
 	SetGlobalConfig(cfg)
 
 	// 初始化日志
-	log.SetDefaultLogger(cfg.Log)
+	parser := &logParser{node: &cfg.Log}
+	err = log.SetDefaultWithLoader(parser)
+	if err != nil {
+		panic(errors.New("parse log config failed, err: " + err.Error()))
+	}
 
 	// 创建gin引擎
 	gin.DefaultWriter = ioutil.Discard

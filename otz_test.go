@@ -1,6 +1,7 @@
 package otz
 
 import (
+	"context"
 	"github.com/ShadowsGtt/otz/log"
 	"github.com/gin-gonic/gin"
 	"testing"
@@ -10,7 +11,12 @@ import (
 func TestNewServer(t *testing.T) {
 	GlobalServerConfigFile = "./test.yaml"
 	s := NewServer()
-	log.Debug("server start")
+	logCtx := log.NewLogCtx(context.Background())
+	ctx := logCtx.GetCtx()
+	log.WithCtx(ctx, "method", "TestNewServer")
+
+	log.Debugf("server start")
+	log.InfoCtxf(ctx, "server start...")
 
 	s.Register("/test", func(c *gin.Context) {
 		c.JSON(200, gin.H{

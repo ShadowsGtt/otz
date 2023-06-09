@@ -1,182 +1,265 @@
 package log
 
 import (
-	"fmt"
-	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
-	"gopkg.in/natefinch/lumberjack.v2"
-	"os"
+	"context"
+	"errors"
 	"sync"
 )
 
-// FormatType 日志格式类型
-type FormatType string
-
 const (
-	FormatTypeConsole FormatType = "console"
-	FormatTypeJSON    FormatType = "json"
+	OtzLoggerKey = "OTZ_LOG_CTX_KEY"
 )
 
-// Config 配置
-type Config struct {
-	FileName   string     `yaml:"file_name"`   // 文件名
-	Level      string     `yaml:"level"`       // 日志等级 debug info warn error fatal
-	MaxSize    int        `yaml:"max_size"`    // 文件大小限制 MB
-	MaxAge     int        `yaml:"max_age"`     // 保留天数
-	MaxBackups int        `yaml:"max_backups"` // 文件数
-	Compress   bool       `yaml:"compress"`    // 是否压缩
-	FormatType FormatType `yaml:"format_type"` // 格式换类型
-}
-
-func newEncoder(c Config) zapcore.Encoder {
-	encoderConfig := zapcore.EncoderConfig{
-		TimeKey:        "time",
-		LevelKey:       "level",
-		NameKey:        "name",
-		CallerKey:      "caller",
-		FunctionKey:    "",
-		MessageKey:     "msg",
-		StacktraceKey:  "stacktrace",
-		LineEnding:     zapcore.DefaultLineEnding,
-		EncodeLevel:    zapcore.CapitalLevelEncoder,
-		EncodeTime:     zapcore.TimeEncoderOfLayout("2006-01-02 15:04:05.999"),
-		EncodeDuration: zapcore.StringDurationEncoder,
-		EncodeCaller:   zapcore.ShortCallerEncoder,
-	}
-	if c.FormatType == FormatTypeJSON {
-		return zapcore.NewJSONEncoder(encoderConfig)
-	}
-	return zapcore.NewConsoleEncoder(encoderConfig)
-}
-
-// Levels 配置日志等级 -> zapcore.Level
-var Levels = map[string]zapcore.Level{
-	"":      zapcore.DebugLevel,
-	"debug": zapcore.DebugLevel,
-	"info":  zapcore.InfoLevel,
-	"warn":  zapcore.WarnLevel,
-	"error": zapcore.ErrorLevel,
-	"fatal": zapcore.FatalLevel,
-}
-
-// NewZapLog 创建zap日志
-func NewZapLog(c Config) *zap.Logger {
-	syncers := []zapcore.WriteSyncer{}
-	// 是否写入文件
-	if c.FileName != "" {
-		logWriter := &lumberjack.Logger{
-			Filename:   c.FileName,
-			MaxSize:    c.MaxSize,    // 文件大小限制
-			MaxBackups: c.MaxBackups, // 文件数
-			MaxAge:     c.MaxAge,     // 保留天数
-			LocalTime:  true,         // 是否本地时间 默认UTC
-			Compress:   c.Compress,   // 是否压缩
-		}
-		syncers = append(syncers, zapcore.AddSync(logWriter))
-	} else {
-		// 否则写入控制台
-		syncers = append(syncers, zapcore.AddSync(os.Stdout))
-	}
-	ws := zapcore.NewMultiWriteSyncer(syncers...)
-	core := zapcore.NewCore(newEncoder(c), ws, zap.NewAtomicLevelAt(Levels[c.Level]))
-	return zap.New(core,
-		zap.AddCaller(), zap.AddCallerSkip(1),
-	)
-}
-
 var (
-	defaultConfig = Config{
-		FileName:   "server.log",
-		MaxSize:    100,
-		MaxAge:     7,
-		MaxBackups: 10,
-		Compress:   false,
-		FormatType: FormatTypeConsole,
-	}
-	defaultLogger = NewZapLog(defaultConfig)
+	defaultLogger Logger
 	mutex         sync.RWMutex
 )
 
-// SetDefaultLogger 设置默认日志
-func SetDefaultLogger(cfg Config) {
+// 默认控制台输出
+func init() {
+	SetDefault(Config{OutputType: OutputTypeConsole})
+}
+
+// Parser 解析器
+type Parser interface {
+	Parse(dst interface{}) error
+}
+
+// SetDefaultWithLoader 设置默认日志
+func SetDefaultWithLoader(parser Parser) error {
+	if parser == nil {
+		return errors.New("loader is nil")
+	}
+	cfgs := []Config{}
+	err := parser.Parse(&cfgs)
+	if err != nil {
+		return err
+	}
+	defaultLogger = NewZapLog(cfgs...)
+
+	return nil
+}
+
+// SetDefault 设置默认日志
+func SetDefault(cfgs ...Config) {
 	mutex.Lock()
 	defer mutex.Unlock()
-	defaultConfig = cfg
-	defaultLogger = NewZapLog(cfg)
+	defaultLogger = NewZapLog(cfgs...)
 }
 
 // GetDefaultLogger 获取默认日志
-func GetDefaultLogger() *zap.Logger {
+func GetDefaultLogger() Logger {
 	mutex.Lock()
 	defer mutex.Unlock()
 	return defaultLogger
 }
 
-func makeMsg(args ...interface{}) string {
-	msg := fmt.Sprint(args...)
-	return msg
-}
-
-func makeMsgFormat(format string, args ...interface{}) string {
-	msg := fmt.Sprintf(format, args...)
-	return msg
-}
-
 // With 设置用户自定义字段
-func With(fields ...string) *zap.Logger {
-	zapFields := make([]zap.Field, len(fields)/2)
-	for i := range zapFields {
-		zapFields[i] = zap.String(fields[2*i], fields[2*i+1])
+func With(fields ...string) Logger {
+	return GetDefaultLogger().With(fields...)
+}
+
+// Context 日志记录上下文
+type Context struct {
+	logger  Logger
+	context context.Context
+}
+
+// SetLogger 设置logger
+func (ctx *Context) SetLogger(logger Logger) {
+	ctx.logger = logger
+}
+
+// GetLogger 获取logger
+func (ctx *Context) GetLogger() Logger {
+	return ctx.logger
+}
+
+// GetCtx 获取ctx
+func (ctx *Context) GetCtx() context.Context {
+	return ctx.context
+}
+
+// WithCtx 通过ctx设置用户自定义字段
+func WithCtx(ctx context.Context, fields ...string) context.Context {
+	logCtx := GetLogCtx(ctx)
+	logger := logCtx.GetLogger()
+	if logger != nil {
+		logger = logCtx.logger.With(fields...)
+	} else {
+		logger = GetDefaultLogger().With(fields...)
 	}
-	return defaultLogger.With(zapFields...)
+	logCtx.SetLogger(logger)
+
+	return ctx
+}
+
+// NewLogCtx 新建log ctx
+func NewLogCtx(ctx context.Context) *Context {
+	newCtx := &Context{}
+	ctx = context.WithValue(ctx, OtzLoggerKey, newCtx)
+	newCtx.context = ctx
+	return newCtx
+
+}
+
+// GetLogCtx 获取ctx和logCtx
+func GetLogCtx(ctx context.Context) *Context {
+	// 从ctx中获取
+	logCtx, ok := ctx.Value(OtzLoggerKey).(*Context)
+	if ok && logCtx != nil {
+		return logCtx
+	}
+
+	return NewLogCtx(ctx)
 }
 
 // Debug without format
 func Debug(args ...interface{}) {
-	defaultLogger.Debug(makeMsg(args...))
+	GetDefaultLogger().Debug(makeMsg(args...))
 }
 
 // Debugf without format
 func Debugf(format string, args ...interface{}) {
-	defaultLogger.Debug(makeMsgFormat(format, args...))
+	GetDefaultLogger().Debug(makeMsgFormat(format, args...))
+}
+
+// DebugCtx without format
+func DebugCtx(ctx context.Context, args ...interface{}) {
+	logCtx, ok := ctx.Value(OtzLoggerKey).(*Context)
+	if ok && logCtx != nil && logCtx.logger != nil {
+		logCtx.logger.Debug(args...)
+		return
+	}
+	GetDefaultLogger().Debug(args...)
+}
+
+// DebugCtxf with format
+func DebugCtxf(ctx context.Context, format string, args ...interface{}) {
+	logCtx, ok := ctx.Value(OtzLoggerKey).(*Context)
+	if ok && logCtx != nil && logCtx.logger != nil {
+		logCtx.logger.Debugf(format, args...)
+		return
+	}
+	GetDefaultLogger().Debugf(format, args...)
 }
 
 // Info without format
 func Info(args ...interface{}) {
-	defaultLogger.Info(makeMsg(args...))
+	GetDefaultLogger().Info(makeMsg(args...))
 }
 
 // Infof with format
 func Infof(format string, args ...interface{}) {
-	defaultLogger.Info(makeMsgFormat(format, args...))
+	GetDefaultLogger().Info(makeMsgFormat(format, args...))
+}
+
+// InfoCtx without format
+func InfoCtx(ctx context.Context, args ...interface{}) {
+	logCtx, ok := ctx.Value(OtzLoggerKey).(*Context)
+	if ok && logCtx != nil && logCtx.logger != nil {
+		logCtx.logger.Info(args...)
+		return
+	}
+	GetDefaultLogger().Info(args...)
+}
+
+// InfoCtxf with format
+func InfoCtxf(ctx context.Context, format string, args ...interface{}) {
+	logCtx, ok := ctx.Value(OtzLoggerKey).(*Context)
+	if ok && logCtx != nil && logCtx.logger != nil {
+		logCtx.logger.Infof(format, args...)
+		return
+	}
+	GetDefaultLogger().Infof(format, args...)
 }
 
 // Warn without format
 func Warn(args ...interface{}) {
-	defaultLogger.Warn(makeMsg(args...))
+	GetDefaultLogger().Warn(makeMsg(args...))
 }
 
 // Warnf with format
 func Warnf(format string, args ...interface{}) {
-	defaultLogger.Warn(makeMsgFormat(format, args...))
+	GetDefaultLogger().Warn(makeMsgFormat(format, args...))
+}
+
+// WarnCtxf with format
+func WarnCtxf(ctx context.Context, format string, args ...interface{}) {
+	logCtx, ok := ctx.Value(OtzLoggerKey).(*Context)
+	if ok && logCtx != nil && logCtx.logger != nil {
+		logCtx.logger.Warnf(format, args...)
+		return
+	}
+	GetDefaultLogger().Warnf(format, args...)
+}
+
+// WarnCtx without format
+func WarnCtx(ctx context.Context, args ...interface{}) {
+	logCtx, ok := ctx.Value(OtzLoggerKey).(*Context)
+	if ok && logCtx != nil && logCtx.logger != nil {
+		logCtx.logger.Warn(args...)
+		return
+	}
+	GetDefaultLogger().Warn(args...)
 }
 
 // Error without format
 func Error(args ...interface{}) {
-	defaultLogger.Error(makeMsg(args...))
+	GetDefaultLogger().Error(makeMsg(args...))
 }
 
 // Errorf  with format
 func Errorf(format string, args ...interface{}) {
-	defaultLogger.Error(makeMsgFormat(format, args...))
+	GetDefaultLogger().Error(makeMsgFormat(format, args...))
+}
+
+// ErrorCtx without format
+func ErrorCtx(ctx context.Context, args ...interface{}) {
+	logCtx, ok := ctx.Value(OtzLoggerKey).(*Context)
+	if ok && logCtx != nil && logCtx.logger != nil {
+		logCtx.logger.Error(args...)
+		return
+	}
+	GetDefaultLogger().Error(args...)
+}
+
+// ErrorCtxf with format
+func ErrorCtxf(ctx context.Context, format string, args ...interface{}) {
+	logCtx, ok := ctx.Value(OtzLoggerKey).(*Context)
+	if ok && logCtx != nil && logCtx.logger != nil {
+		logCtx.logger.Errorf(format, args...)
+		return
+	}
+	GetDefaultLogger().Errorf(format, args...)
 }
 
 // Fatal without format
 func Fatal(args ...interface{}) {
-	defaultLogger.Fatal(makeMsg(args...))
+	GetDefaultLogger().Fatal(makeMsg(args...))
 }
 
 // Fatalf with format
 func Fatalf(format string, args ...interface{}) {
-	defaultLogger.Fatal(makeMsg(args...))
+	GetDefaultLogger().Fatal(makeMsg(args...))
+}
+
+// FatalCtx with format
+func FatalCtx(ctx context.Context, args ...interface{}) {
+	logCtx, ok := ctx.Value(OtzLoggerKey).(*Context)
+	if ok && logCtx != nil && logCtx.logger != nil {
+		logCtx.logger.Fatal(args...)
+		return
+	}
+	GetDefaultLogger().Fatal(args...)
+}
+
+// FatalCtxf with format
+func FatalCtxf(ctx context.Context, format string, args ...interface{}) {
+	logCtx, ok := ctx.Value(OtzLoggerKey).(*Context)
+	if ok && logCtx != nil && logCtx.logger != nil {
+		logCtx.logger.Fatalf(format, args...)
+		return
+	}
+	GetDefaultLogger().Fatalf(format, args...)
 }

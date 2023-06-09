@@ -1,17 +1,16 @@
 package otz
 
 import (
-	"github.com/ShadowsGtt/otz/log"
-	"gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v3"
 	"io/ioutil"
 	"sync/atomic"
 )
 
 // Config 本地配置
 type Config struct {
-	Ip   string     `yaml:"ip"`
-	Port string     `yaml:"port"`
-	Log  log.Config `yaml:"log"`
+	Ip   string    `yaml:"ip"`
+	Port string    `yaml:"port"`
+	Log  yaml.Node `yaml:"log"`
 }
 
 const (

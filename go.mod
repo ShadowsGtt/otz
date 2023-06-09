@@ -6,7 +6,6 @@ require (
 	github.com/gin-gonic/gin v1.9.1
 	go.uber.org/zap v1.24.0
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1
-	gopkg.in/yaml.v2 v2.4.0
 )
 
 require (
