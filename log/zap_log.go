@@ -35,6 +35,7 @@ type Config struct {
 	MaxBackups int        `yaml:"max_backups"` // 文件数
 	Compress   bool       `yaml:"compress"`    // 是否压缩
 	FormatType FormatType `yaml:"format_type"` // 格式换类型 text/json
+	Skip       int        `yaml:"skip"`        // 跳过的调用栈
 }
 
 // Levels 配置日志等级 -> zapcore.Level
@@ -56,14 +57,18 @@ type ZapLog struct {
 // NewZapLog 创建zap日志
 func NewZapLog(cfgs ...Config) Logger {
 	cores := []zapcore.Core{}
+	skip := 2
 	for _, c := range cfgs {
+		if c.Skip != 0 {
+			skip = c.Skip
+		}
 		cores = append(cores, createZapCore(c))
 	}
 	return &ZapLog{
 		zapLog: zap.New(
 			zapcore.NewTee(cores...),
 			zap.AddCaller(),
-			zap.AddCallerSkip(1),
+			zap.AddCallerSkip(skip),
 		),
 		cfgs: cfgs,
 	}

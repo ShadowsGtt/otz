@@ -8,9 +8,12 @@ import (
 
 // Config 本地配置
 type Config struct {
-	Ip   string    `yaml:"ip"`
-	Port string    `yaml:"port"`
-	Log  yaml.Node `yaml:"log"`
+	Server struct {
+		Ip   string `yaml:"ip"`
+		Port int    `yaml:"port"`
+	} `yaml:"server"`
+
+	Log yaml.Node `yaml:"log"`
 }
 
 const (

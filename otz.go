@@ -21,7 +21,7 @@ func (s *Server) Register(method string, handler func(*gin.Context)) {
 
 func (s *Server) Start() error {
 	cfg := GetGlobalConfig()
-	addr := fmt.Sprintf("%s:%s", cfg.Ip, cfg.Port)
+	addr := fmt.Sprintf("%s:%d", cfg.Server.Ip, cfg.Server.Port)
 	log.Infof("server start, listen addr: %s", addr)
 	if err := s.engine.Run(addr); err != nil {
 		return err
@@ -43,6 +43,7 @@ type logParser struct {
 	node *yaml.Node
 }
 
+// Parse 解析日志配置
 func (p *logParser) Parse(dst interface{}) error {
 	if p.node == nil {
 		return errors.New("node is nil")
@@ -53,7 +54,6 @@ func (p *logParser) Parse(dst interface{}) error {
 // NewServer 创建服务
 func NewServer() *Server {
 	s := &Server{}
-
 	// 加载服务配置
 	cfg, err := LoadConfig(getServerConfigPath())
 	if err != nil {
