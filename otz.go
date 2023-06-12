@@ -1,10 +1,12 @@
 package otz
 
 import (
+	"context"
 	"errors"
 	"flag"
 	"fmt"
 	"github.com/ShadowsGtt/otz/log"
+	"github.com/ShadowsGtt/otz/otzctx"
 	"github.com/gin-gonic/gin"
 	"gopkg.in/yaml.v3"
 	"io/ioutil"
@@ -15,10 +17,18 @@ type Server struct {
 	engine *gin.Engine
 }
 
-func (s *Server) Register(method string, handler func(*gin.Context)) {
-	s.engine.Any(method, handler)
+// Register 注册服务
+func (s *Server) Register(method string, handler func(ctx context.Context)) {
+	h := func(ginCtx *gin.Context) {
+		otzCtx := otzctx.GetOrNewOTZContext(context.Background())
+		otzCtx.SetGinCtx(ginCtx)
+		defer otzctx.PutOTZCtx(otzCtx)
+		handler(otzCtx.Context())
+	}
+	s.engine.Any(method, h)
 }
 
+// Start 启动服务
 func (s *Server) Start() error {
 	cfg := GetGlobalConfig()
 	addr := fmt.Sprintf("%s:%d", cfg.Server.Ip, cfg.Server.Port)

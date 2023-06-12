@@ -3,11 +3,8 @@ package log
 import (
 	"context"
 	"errors"
+	"github.com/ShadowsGtt/otz/otzctx"
 	"sync"
-)
-
-const (
-	OtzLoggerKey = "OTZ_LOG_CTX_KEY"
 )
 
 var (
@@ -104,36 +101,16 @@ func (ctx *Context) GetCtx() context.Context {
 
 // WithCtx 通过ctx设置用户自定义字段
 func WithCtx(ctx context.Context, fields ...string) context.Context {
-	logCtx := GetLogCtx(ctx)
-	logger := logCtx.GetLogger()
-	if logger != nil {
-		logger = logCtx.logger.With(fields...)
+	otzCtx := otzctx.GetOrNewOTZContext(ctx)
+	logger, ok := otzCtx.GetLogger().(Logger)
+	if ok && logger != nil {
+		logger = logger.With(fields...)
 	} else {
 		logger = GetDefaultLogger().With(fields...)
 	}
-	logCtx.SetLogger(logger)
+	otzCtx.SetLogger(logger)
 
 	return ctx
-}
-
-// NewLogCtx 新建log ctx
-func NewLogCtx(ctx context.Context) *Context {
-	newCtx := &Context{}
-	ctx = context.WithValue(ctx, OtzLoggerKey, newCtx)
-	newCtx.context = ctx
-	return newCtx
-
-}
-
-// GetLogCtx 获取ctx和logCtx
-func GetLogCtx(ctx context.Context) *Context {
-	// 从ctx中获取
-	logCtx, ok := ctx.Value(OtzLoggerKey).(*Context)
-	if ok && logCtx != nil {
-		return logCtx
-	}
-
-	return NewLogCtx(ctx)
 }
 
 // Debug without format
@@ -148,9 +125,9 @@ func Debugf(format string, args ...interface{}) {
 
 // DebugCtx without format
 func DebugCtx(ctx context.Context, args ...interface{}) {
-	logCtx, ok := ctx.Value(OtzLoggerKey).(*Context)
-	if ok && logCtx != nil && logCtx.logger != nil {
-		logCtx.logger.Debug(args...)
+	logger, ok := otzctx.OTZContext(ctx).GetLogger().(Logger)
+	if ok && logger != nil {
+		logger.Debug(args...)
 		return
 	}
 	GetDefaultLogger().Debug(args...)
@@ -158,9 +135,9 @@ func DebugCtx(ctx context.Context, args ...interface{}) {
 
 // DebugCtxf with format
 func DebugCtxf(ctx context.Context, format string, args ...interface{}) {
-	logCtx, ok := ctx.Value(OtzLoggerKey).(*Context)
-	if ok && logCtx != nil && logCtx.logger != nil {
-		logCtx.logger.Debugf(format, args...)
+	logger, ok := otzctx.OTZContext(ctx).GetLogger().(Logger)
+	if ok && logger != nil {
+		logger.Debugf(format, args...)
 		return
 	}
 	GetDefaultLogger().Debugf(format, args...)
@@ -178,9 +155,9 @@ func Infof(format string, args ...interface{}) {
 
 // InfoCtx without format
 func InfoCtx(ctx context.Context, args ...interface{}) {
-	logCtx, ok := ctx.Value(OtzLoggerKey).(*Context)
-	if ok && logCtx != nil && logCtx.logger != nil {
-		logCtx.logger.Info(args...)
+	logger, ok := otzctx.OTZContext(ctx).GetLogger().(Logger)
+	if ok && logger != nil {
+		logger.Info(args...)
 		return
 	}
 	GetDefaultLogger().Info(args...)
@@ -188,9 +165,9 @@ func InfoCtx(ctx context.Context, args ...interface{}) {
 
 // InfoCtxf with format
 func InfoCtxf(ctx context.Context, format string, args ...interface{}) {
-	logCtx, ok := ctx.Value(OtzLoggerKey).(*Context)
-	if ok && logCtx != nil && logCtx.logger != nil {
-		logCtx.logger.Infof(format, args...)
+	logger, ok := otzctx.OTZContext(ctx).GetLogger().(Logger)
+	if ok && logger != nil {
+		logger.Infof(format, args...)
 		return
 	}
 	GetDefaultLogger().Infof(format, args...)
@@ -208,9 +185,9 @@ func Warnf(format string, args ...interface{}) {
 
 // WarnCtxf with format
 func WarnCtxf(ctx context.Context, format string, args ...interface{}) {
-	logCtx, ok := ctx.Value(OtzLoggerKey).(*Context)
-	if ok && logCtx != nil && logCtx.logger != nil {
-		logCtx.logger.Warnf(format, args...)
+	logger, ok := otzctx.OTZContext(ctx).GetLogger().(Logger)
+	if ok && logger != nil {
+		logger.Warnf(format, args...)
 		return
 	}
 	GetDefaultLogger().Warnf(format, args...)
@@ -218,9 +195,9 @@ func WarnCtxf(ctx context.Context, format string, args ...interface{}) {
 
 // WarnCtx without format
 func WarnCtx(ctx context.Context, args ...interface{}) {
-	logCtx, ok := ctx.Value(OtzLoggerKey).(*Context)
-	if ok && logCtx != nil && logCtx.logger != nil {
-		logCtx.logger.Warn(args...)
+	logger, ok := otzctx.OTZContext(ctx).GetLogger().(Logger)
+	if ok && logger != nil {
+		logger.Warn(args...)
 		return
 	}
 	GetDefaultLogger().Warn(args...)
@@ -238,9 +215,9 @@ func Errorf(format string, args ...interface{}) {
 
 // ErrorCtx without format
 func ErrorCtx(ctx context.Context, args ...interface{}) {
-	logCtx, ok := ctx.Value(OtzLoggerKey).(*Context)
-	if ok && logCtx != nil && logCtx.logger != nil {
-		logCtx.logger.Error(args...)
+	logger, ok := otzctx.OTZContext(ctx).GetLogger().(Logger)
+	if ok && logger != nil {
+		logger.Error(args...)
 		return
 	}
 	GetDefaultLogger().Error(args...)
@@ -248,9 +225,9 @@ func ErrorCtx(ctx context.Context, args ...interface{}) {
 
 // ErrorCtxf with format
 func ErrorCtxf(ctx context.Context, format string, args ...interface{}) {
-	logCtx, ok := ctx.Value(OtzLoggerKey).(*Context)
-	if ok && logCtx != nil && logCtx.logger != nil {
-		logCtx.logger.Errorf(format, args...)
+	logger, ok := otzctx.OTZContext(ctx).GetLogger().(Logger)
+	if ok && logger != nil {
+		logger.Errorf(format, args...)
 		return
 	}
 	GetDefaultLogger().Errorf(format, args...)
@@ -268,9 +245,9 @@ func Fatalf(format string, args ...interface{}) {
 
 // FatalCtx with format
 func FatalCtx(ctx context.Context, args ...interface{}) {
-	logCtx, ok := ctx.Value(OtzLoggerKey).(*Context)
-	if ok && logCtx != nil && logCtx.logger != nil {
-		logCtx.logger.Fatal(args...)
+	logger, ok := otzctx.OTZContext(ctx).GetLogger().(Logger)
+	if ok && logger != nil {
+		logger.Fatal(args...)
 		return
 	}
 	GetDefaultLogger().Fatal(args...)
@@ -278,9 +255,9 @@ func FatalCtx(ctx context.Context, args ...interface{}) {
 
 // FatalCtxf with format
 func FatalCtxf(ctx context.Context, format string, args ...interface{}) {
-	logCtx, ok := ctx.Value(OtzLoggerKey).(*Context)
-	if ok && logCtx != nil && logCtx.logger != nil {
-		logCtx.logger.Fatalf(format, args...)
+	logger, ok := otzctx.OTZContext(ctx).GetLogger().(Logger)
+	if ok && logger != nil {
+		logger.Fatalf(format, args...)
 		return
 	}
 	GetDefaultLogger().Fatalf(format, args...)

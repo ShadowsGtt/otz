@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"github.com/ShadowsGtt/otz/log"
+	"github.com/ShadowsGtt/otz/otzctx"
 	"gopkg.in/yaml.v3"
 	"testing"
 )
@@ -43,10 +44,10 @@ func TestSetDefaultLogger(t *testing.T) {
 }
 
 func TestWithCtx(t *testing.T) {
-	logCtx := log.NewLogCtx(context.Background())
-	ctx := logCtx.GetCtx()
-	logCtx.SetLogger(log.NewZapLog(log.Config{OutputType: log.OutputTypeConsole}))
-
+	otzCtx := otzctx.GetOrNewOTZContext(context.Background())
+	defer otzctx.PutOTZCtx(otzCtx)
+	otzCtx.SetLogger(log.NewZapLog(log.Config{OutputType: log.OutputTypeConsole}))
+	ctx := otzCtx.Context()
 	log.WithCtx(ctx, "age", "18")
 	log.WithCtx(ctx, "name", "tom")
 
@@ -107,9 +108,9 @@ log:
 	if err != nil {
 		t.Fatal(err)
 	}
-	logCtx := log.NewLogCtx(context.Background())
-	ctx := logCtx.GetCtx()
-	//logCtx.SetLogger(log.GetDefaultLogger())
+	otzCtx := otzctx.NewOtzContext(context.Background())
+	defer otzctx.PutOTZCtx(otzCtx)
+	ctx := otzCtx.Context()
 
 	log.WithCtx(ctx, "name", "tom")
 	log.WithCtx(ctx, "age", "18")
