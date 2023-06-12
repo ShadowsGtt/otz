@@ -17,7 +17,7 @@ type Config struct {
 }
 
 const (
-	defaultConfigFile = "./otz_server.yaml"
+	defaultConfigFile = "./otz_go.yaml"
 )
 
 var (
