@@ -10,6 +10,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"gopkg.in/yaml.v3"
 	"io/ioutil"
+	"runtime/debug"
 )
 
 // Server 服务信息
@@ -22,6 +23,11 @@ func (s *Server) Register(method string, handler func(ctx context.Context)) {
 	h := func(ginCtx *gin.Context) {
 		otzCtx := otzctx.GetOrNewOTZContext(context.Background())
 		otzCtx.SetGinCtx(ginCtx)
+		defer func() {
+			if err := recover(); err != nil {
+				log.Errorf("panic stack: %s", string(debug.Stack()))
+			}
+		}()
 		defer otzctx.PutOTZCtx(otzCtx)
 		handler(otzCtx.Context())
 	}
