@@ -55,14 +55,14 @@ func Code(err error) int {
 // Msg 获取错误信息
 func Msg(err error) string {
 	if err == nil {
-		return ""
+		return "success"
 	}
 	e, ok := err.(*Error)
 	if !ok {
-		return e.Error()
+		return err.Error()
 	}
 	if e == (*Error)(nil) {
-		return ""
+		return "success"
 	}
 	return e.Msg
 }
