@@ -24,6 +24,7 @@ type Server struct {
 func (s *Server) Register(method string, handler func(ctx context.Context)) {
 	h := func(ginCtx *gin.Context) {
 		otzCtx := otzctx.GetOrNewOTZContext(context.Background())
+		defer otzctx.PutOTZCtx(otzCtx)
 		otzCtx.SetGinCtx(ginCtx)
 		begin := time.Now()
 		defer func() {
@@ -35,7 +36,6 @@ func (s *Server) Register(method string, handler func(ctx context.Context)) {
 				ginCtx.Request.URL.Path, time.Since(begin).Milliseconds(),
 			)
 		}()
-		defer otzctx.PutOTZCtx(otzCtx)
 		handler(otzCtx.Context())
 	}
 	s.engine.Any(method, h)
