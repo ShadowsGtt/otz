@@ -10,6 +10,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"gopkg.in/yaml.v3"
 	"io/ioutil"
+	"net/http"
 	"runtime/debug"
 )
 
@@ -25,8 +26,9 @@ func (s *Server) Register(method string, handler func(ctx context.Context)) {
 		otzCtx.SetGinCtx(ginCtx)
 		defer func() {
 			if err := recover(); err != nil {
-				log.Errorf("panic stack: %s", string(debug.Stack()))
+				log.ErrorCtxf(otzCtx.Context(), "%s", string(debug.Stack()))
 			}
+			ginCtx.Data(http.StatusInternalServerError, "", nil)
 		}()
 		defer otzctx.PutOTZCtx(otzCtx)
 		handler(otzCtx.Context())
