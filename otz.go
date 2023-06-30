@@ -12,6 +12,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"runtime/debug"
+	"time"
 )
 
 // Server 服务信息
@@ -24,11 +25,15 @@ func (s *Server) Register(method string, handler func(ctx context.Context)) {
 	h := func(ginCtx *gin.Context) {
 		otzCtx := otzctx.GetOrNewOTZContext(context.Background())
 		otzCtx.SetGinCtx(ginCtx)
+		begin := time.Now()
 		defer func() {
 			if err := recover(); err != nil {
 				log.ErrorCtxf(otzCtx.Context(), "%s", string(debug.Stack()))
+				ginCtx.Data(http.StatusInternalServerError, "", nil)
 			}
-			ginCtx.Data(http.StatusInternalServerError, "", nil)
+			log.InfoCtxf(otzCtx.Context(), "URI: %s, cost: %dms",
+				ginCtx.Request.URL.Path, time.Since(begin).Milliseconds(),
+			)
 		}()
 		defer otzctx.PutOTZCtx(otzCtx)
 		handler(otzCtx.Context())
